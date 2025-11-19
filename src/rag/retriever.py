@@ -2,15 +2,10 @@
 RAG Retriever for Dental Clinic FAQ
 Connects to existing ChromaDB vector store
 """
-
-import os
 import chromadb
 from langchain_chroma import Chroma
 from langchain_community.embeddings import JinaEmbeddings
 from src.config.settings import settings
-
-# Disable ChromaDB telemetry
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
 
 class KnowledgeBaseRetriever:

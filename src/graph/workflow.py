@@ -8,6 +8,7 @@ from langgraph.graph import StateGraph, END
 from src.graph.state import AgentState
 from src.graph.nodes.router import router_node
 from src.graph.nodes.faq_agent import faq_agent_node
+from src.graph.nodes.booking_agent import booking_agent_node
 from src.graph.nodes.placeholder import placeholder_node
 
 
@@ -29,7 +30,7 @@ def route_to_agent(state: AgentState) -> str:
     # Map intents to node names
     routing_map = {
         "faq": "faq_agent",
-        "booking": "placeholder",
+        "booking": "booking_agent",
         "management": "placeholder",
         "feedback": "placeholder",
         "escalate": "placeholder",
@@ -77,6 +78,7 @@ def create_workflow():
     # Add nodes
     workflow.add_node("router", router_node)
     workflow.add_node("faq_agent", faq_agent_node)
+    workflow.add_node("booking_agent", booking_agent_node)
     workflow.add_node("placeholder", placeholder_node)
 
     # Set entry point
@@ -88,6 +90,7 @@ def create_workflow():
         route_to_agent,
         {
             "faq_agent": "faq_agent",
+            "booking_agent": "booking_agent",
             "placeholder": "placeholder",
             END: END,
         }
@@ -95,6 +98,7 @@ def create_workflow():
 
     # All agents flow to END
     workflow.add_edge("faq_agent", END)
+    workflow.add_edge("booking_agent", END)
     workflow.add_edge("placeholder", END)
 
     # Compile the graph

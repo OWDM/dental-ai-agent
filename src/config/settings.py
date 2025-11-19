@@ -9,6 +9,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Disable ChromaDB telemetry globally (must be set before chromadb import anywhere)
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY"] = "False"
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""

@@ -72,6 +72,12 @@ Response: faq
 User: "I want to book a teeth cleaning appointment"
 Response: booking
 
+User: "i wanna book"
+Response: booking
+
+User: "I need to see a dentist"
+Response: booking
+
 User: "I need to cancel my appointment tomorrow"
 Response: management
 
@@ -90,9 +96,7 @@ def router_node(state: AgentState) -> AgentState:
     """
     Router agent that classifies user intent and determines next agent.
 
-    Uses a hybrid approach:
-    1. Fast pattern matching for obvious cases (greetings, thanks, etc.)
-    2. LLM classification for complex queries
+    Uses LLM for all intent classification to ensure accurate routing.
 
     Args:
         state: Current agent state with conversation messages
@@ -111,59 +115,57 @@ def router_node(state: AgentState) -> AgentState:
     last_message = messages[-1].content.lower().strip()
 
     # ============================================
-    # FAST PATH: Pattern matching for obvious cases
+    # Context-aware routing: Check if we're continuing a conversation
     # ============================================
+    # If there are previous messages, check if we're in the middle of a booking/management flow
+    previous_intent = state.get("current_intent")
 
-    # Greetings and simple interactions (FAQ)
-    greetings = ["hi", "hello", "hey", "مرحبا", "السلام عليكم", "السلام", "هلا", "اهلا"]
-    thanks = ["thank", "thanks", "شكرا", "شكراً", "تسلم", "great", "good", "ok", "okay"]
+    # Check if the last assistant message suggests we're waiting for user input in booking/management
+    if len(messages) >= 2:
+        last_assistant_msg = None
+        for msg in reversed(messages[:-1]):  # Look at messages before the current user message
+            if hasattr(msg, 'type') and msg.type == 'ai':
+                last_assistant_msg = msg.content.lower()
+                break
 
-    # Check for greetings
-    if any(greeting in last_message.split() for greeting in greetings):
-        intent = "faq"
+        # If booking agent just asked for details (doctor, service, time), stay in booking
+        if previous_intent == "booking" and last_assistant_msg:
+            booking_keywords = ["which doctor", "service you need", "preferred time", "date and time",
+                              "available doctors", "available services", "select the service"]
+            if any(keyword in last_assistant_msg for keyword in booking_keywords):
+                # User is responding to booking questions - stay in booking
+                state["current_intent"] = "booking"
+                state["next_agent"] = "booking"
+                return state
 
-    # Check for thanks
-    elif any(thank in last_message for thank in thanks):
-        intent = "faq"
+    # ============================================
+    # Use LLM for intent classification with conversation context
+    # ============================================
+    # Build context from recent messages (last 4 messages for context)
+    recent_messages = messages[-4:] if len(messages) > 4 else messages
+    context = "\n".join([
+        f"{'User' if hasattr(msg, 'type') and msg.type == 'human' else 'Assistant'}: {msg.content}"
+        for msg in recent_messages[:-1]  # Exclude the current message
+    ])
 
-    # Booking keywords (very explicit)
-    elif any(keyword in last_message for keyword in ["book", "حجز", "موعد", "schedule", "appointment"]):
-        # Check if it's asking about how to book vs actually booking
-        if any(word in last_message for word in ["want", "need", "i'd like", "أريد", "ابغى", "ودي"]):
-            intent = "booking"
-        else:
-            intent = "faq"  # Just asking about booking process
+    prompt = f"""Previous conversation:
+{context}
 
-    # Cancel/modify keywords
-    elif any(keyword in last_message for keyword in ["cancel", "إلغاء", "modify", "change", "reschedule", "تغيير", "تعديل"]):
-        intent = "management"
+Current user message: {last_message}
 
-    # Emergency keywords
-    elif any(keyword in last_message for keyword in ["emergency", "urgent", "pain", "bleeding", "طوارئ", "ألم", "نزيف"]):
-        if any(word in last_message for word in ["severe", "bad", "شديد", "قوي", "now", "الآن"]):
-            intent = "escalate"
-        else:
-            intent = "faq"  # General question about pain
+Based on the conversation context and the current message, classify the intent."""
 
-    # Complaint keywords (detailed feedback)
-    elif any(keyword in last_message for keyword in ["rude", "bad service", "complaint", "شكوى", "سيء", "terrible"]):
-        intent = "feedback"
+    response = llm_router.invoke([
+        SystemMessage(content=ROUTER_SYSTEM_PROMPT),
+        HumanMessage(content=prompt)
+    ])
 
-    else:
-        # ============================================
-        # SLOW PATH: Use LLM for complex queries
-        # ============================================
-        response = llm_router.invoke([
-            SystemMessage(content=ROUTER_SYSTEM_PROMPT),
-            HumanMessage(content=f"Classify this message: {last_message}")
-        ])
+    intent = response.content.strip().lower()
 
-        intent = response.content.strip().lower()
-
-        # Validate intent
-        valid_intents = ["faq", "booking", "management", "feedback", "escalate"]
-        if intent not in valid_intents:
-            intent = "faq"  # Default to FAQ if classification fails
+    # Validate intent
+    valid_intents = ["faq", "booking", "management", "feedback", "escalate"]
+    if intent not in valid_intents:
+        intent = "faq"  # Default to FAQ if classification fails
 
     # Update state
     state["current_intent"] = intent

@@ -4,15 +4,19 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
 
 ---
 
-## ✅ Phase 1: COMPLETED
+## ✅ Phase 1 & 2: COMPLETED
 
 ### What's Built
 
-**1. Router + FAQ Agent Architecture**
-- ✅ Router agent - classifies user intent (hybrid: pattern matching + LLM)
-- ✅ FAQ agent - answers questions using RAG (ChromaDB + Jina embeddings)
-- ✅ LangGraph workflow - hierarchical routing
-- ✅ Patient selection at startup (select from 8 existing patients)
+**Router + FAQ + Booking Agents**
+- ✅ **Router** - LLM-based intent classification with conversation memory
+- ✅ **FAQ Agent** - RAG-powered Q&A (ChromaDB + Jina embeddings)
+- ✅ **Booking Agent** - Google Calendar integration with conflict detection
+  - Check patient appointments
+  - Show available doctors & services from database
+  - Create bookings with duplicate prevention
+  - Detects both doctor and patient time conflicts
+- ✅ Patient selection at startup (knows who you are throughout conversation)
 
 ### Components
 
@@ -25,11 +29,16 @@ src/
 │   └── nodes/
 │       ├── router.py          # Intent classification
 │       ├── faq_agent.py       # FAQ with RAG
+│       ├── booking_agent.py   # Booking with Calendar
 │       └── placeholder.py     # Future agents
 ├── llm/client.py              # OpenRouter (Qwen)
 ├── rag/retriever.py           # ChromaDB + Jina
-├── tools/rag_tool.py          # Knowledge base query
-└── services/database.py       # Supabase client
+├── tools/
+│   ├── rag_tool.py            # Knowledge base query
+│   └── booking_tools.py       # Booking operations
+└── services/
+    ├── database.py            # Supabase client
+    └── calendar.py            # Google Calendar API
 
 main.py                        # CLI with patient selection
 init_chromadb.py              # Vector DB initialization
@@ -49,51 +58,6 @@ init_chromadb.py              # Vector DB initialization
 - `services` - id, name, description, duration_minutes, price
 - `support_tickets` - conversation tracking
 - `feedback` - patient feedback
-
----
-
-## 🚧 Phase 2: NEXT - Simple Booking Agent
-
-### Goal
-Agent that can:
-1. Check booking status (read from Google Calendar)
-2. Create new booking (write to Google Calendar) but make sure no duplications in booking for same doctor!
-
-### What to Build
-
-**1. Calendar Service** `src/services/calendar.py`
-```python
-- get_patient_appointments(patient_email)  # Read from Google Calendar
-- create_appointment(patient, doctor, service, time)  # Write to Google Calendar
-```
-
-**2. Booking Tools** `src/tools/booking_tools.py`
-```python
-- check_my_bookings()  # Show patient their appointments
-- create_new_booking(doctor_id, service_id, datetime)  # Book appointment
-```
-
-**3. Booking Agent** `src/graph/nodes/booking_agent.py`
-- Multi-turn conversation
-- Uses patient info from state (already selected at startup)
-- Shows available doctors and times
-- Creates Google Calendar event
-
-### Workflow
-
-```
-User: "Do I have any appointments?"
-→ check_my_bookings() → reads Google Calendar
-→ Agent: "You have 1 appointment: Nov 25, 2PM with Dr. Saad"
-
-User: "I want to book a cleaning"
-→ Agent: "Available doctors: 1) Dr. Saad, 2) Dr. Ahmed..."
-→ User: "Dr. Saad"
-→ Agent: "Available times: ..."
-→ User: "Tomorrow 2PM"
-→ create_new_booking() → writes to Google Calendar
-→ Agent: "✅ Booked!"
-```
 
 ---
 
@@ -144,20 +108,27 @@ python main.py
 
 ---
 
-## 🧪 Test FAQ Agent (Phase 1)
+## 🧪 Test Examples
 
-```bash
-python main.py
+**FAQ Agent:**
+```
+💬 You: Hey, do you know who I am?
+🤖 Assistant: Yes! You are أحمد محمد العتيبي, email: ahmed.alotaibi@gmail.com
 
-# Select patient
-Enter number (1-8): 1
-
-# Ask FAQ questions
 💬 You: What are your business hours?
-🤖 Assistant: Our clinic is open Sunday to Thursday from 9:00 AM to 8:00 PM...
+🤖 Assistant: Open Sunday-Thursday 9AM-8PM, Saturday 10AM-6PM. Closed Fridays.
+```
 
-💬 You: How much is teeth cleaning?
-🤖 Assistant: Teeth cleaning costs 200 SAR...
+**Booking Agent:**
+```
+💬 You: I want to book an appointment
+🤖 Assistant: [Shows 10 services and 5 doctors with IDs and prices]
+
+💬 You: Teeth cleaning with Dr. Saad on Wednesday at 3:30pm
+🤖 Assistant: ✅ Booked! Service: تنظيف الأسنان, Dr. Saad, Wed Nov 19 at 3:30 PM
+
+💬 You: Book another at 3:30pm with Dr. Layla
+🤖 Assistant: ❌ You already have an appointment at this time
 ```
 
 ---
@@ -171,10 +142,10 @@ User Input
     ↓
 [Router Agent]
     │
-    ├─> FAQ Agent (RAG) ✅ DONE
-    ├─> Booking Agent (Calendar) 🚧 NEXT
-    ├─> Management Agent ⏳ Future
-    └─> Feedback Agent ⏳ Future
+    ├─> FAQ Agent (RAG) ✅
+    ├─> Booking Agent (Calendar) ✅
+    ├─> Management Agent ⏳
+    └─> Feedback Agent ⏳
 ```
 
 ### Design Principles
