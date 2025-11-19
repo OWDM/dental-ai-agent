@@ -44,3 +44,8 @@ Thumbs.db
 
 # Database
 database/*.sql
+
+# Graph visualizations
+graph_visualization.png
+graph_diagram.mmd
+*.mmd

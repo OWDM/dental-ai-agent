@@ -9,3 +9,17 @@ google-auth==2.37.0
 google-auth-oauthlib==1.2.1
 google-auth-httplib2==0.2.0
 google-api-python-client==2.156.0
+
+# LangGraph & LangChain
+langgraph==0.2.53
+langchain==0.3.12
+langchain-openai==0.2.12
+langchain-community==0.3.12
+langchain-chroma==0.1.4
+
+# Vector Database
+chromadb==0.5.23
+
+# Data validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
