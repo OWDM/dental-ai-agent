@@ -263,7 +263,8 @@ class CalendarService:
         self,
         patient_email: str,
         start_time: datetime,
-        end_time: datetime
+        end_time: datetime,
+        exclude_event_id: str = None
     ) -> bool:
         """
         Check if patient already has an appointment at this time
@@ -272,6 +273,7 @@ class CalendarService:
             patient_email: Patient's email
             start_time: Proposed appointment start time
             end_time: Proposed appointment end time
+            exclude_event_id: Event ID to exclude from conflict check (for rescheduling)
 
         Returns:
             True if conflict exists, False otherwise
@@ -297,6 +299,10 @@ class CalendarService:
 
             # Check each event for conflicts
             for i, event in enumerate(events):
+                # Skip the event being rescheduled
+                if exclude_event_id and event['id'] == exclude_event_id:
+                    continue
+
                 description = event.get('description', '')
 
                 # Check if this event is for the same patient
@@ -336,6 +342,214 @@ class CalendarService:
             import traceback
             traceback.print_exc()
             return False
+
+    def find_appointment_by_criteria(
+        self,
+        patient_email: str,
+        doctor_name: str = None,
+        service_name: str = None,
+        date_str: str = None
+    ) -> Optional[Dict]:
+        """
+        Find a specific appointment based on natural language criteria
+
+        Args:
+            patient_email: Patient's email
+            doctor_name: Doctor's name (optional)
+            service_name: Service name (optional)
+            date_str: Date string in various formats (optional)
+
+        Returns:
+            Appointment dict if found, None otherwise
+        """
+        try:
+            appointments = self.get_patient_appointments(patient_email)
+
+            if not appointments:
+                return None
+
+            # Filter by criteria
+            matches = []
+            for appt in appointments:
+                match = True
+
+                # Check doctor name
+                if doctor_name and doctor_name.lower() not in appt['description'].lower():
+                    match = False
+
+                # Check service name
+                if service_name and service_name.lower() not in appt['summary'].lower():
+                    match = False
+
+                # Check date (flexible matching)
+                if date_str:
+                    appt_date = datetime.fromisoformat(appt['start_time'].replace('Z', '+00:00'))
+                    appt_date_str = appt_date.strftime('%Y-%m-%d')
+
+                    # Try to match the date in various formats
+                    if date_str.lower() not in appt_date_str and \
+                       date_str.lower() not in appt_date.strftime('%A').lower() and \
+                       date_str.lower() not in appt_date.strftime('%B %d').lower():
+                        match = False
+
+                if match:
+                    matches.append(appt)
+
+            # If exactly one match, return it
+            if len(matches) == 1:
+                return matches[0]
+
+            # If multiple matches, return the first one (could be improved with better disambiguation)
+            if len(matches) > 1:
+                return matches[0]
+
+            return None
+
+        except Exception as e:
+            print(f"Error finding appointment: {e}")
+            return None
+
+    def update_appointment(
+        self,
+        event_id: str,
+        new_start_time: datetime = None,
+        new_doctor_name: str = None,
+        new_doctor_email: str = None,
+        new_service_name: str = None,
+        new_duration_minutes: int = None
+    ) -> Optional[Dict]:
+        """
+        Update an existing appointment
+
+        Args:
+            event_id: Google Calendar event ID
+            new_start_time: New appointment start time (optional)
+            new_doctor_name: New doctor name (optional)
+            new_doctor_email: New doctor email (optional)
+            new_service_name: New service name (optional)
+            new_duration_minutes: New duration (optional)
+
+        Returns:
+            Updated event dict or error dict
+        """
+        try:
+            # Get the existing event
+            event = self.service.events().get(
+                calendarId=self.calendar_id,
+                eventId=event_id
+            ).execute()
+
+            # Extract current values
+            current_start = datetime.fromisoformat(event['start']['dateTime'].replace('Z', '+00:00')).replace(tzinfo=None)
+            current_end = datetime.fromisoformat(event['end']['dateTime'].replace('Z', '+00:00')).replace(tzinfo=None)
+            current_duration = int((current_end - current_start).total_seconds() / 60)
+            description = event.get('description', '')
+
+            # Parse current info from description
+            patient_email = ''
+            patient_name = ''
+            current_doctor_email = ''
+            current_doctor_name = ''
+            for line in description.split('\n'):
+                if 'Patient:' in line:
+                    parts = line.split('(')
+                    if len(parts) > 1:
+                        patient_email = parts[1].replace(')', '').strip()
+                        patient_name = parts[0].replace('Patient:', '').strip()
+                if 'Doctor:' in line and '(' in line:
+                    # Extract both name and email from "Doctor: Name (email)"
+                    parts = line.split('(')
+                    current_doctor_name = parts[0].replace('Doctor:', '').strip()
+                    current_doctor_email = parts[1].replace(')', '').strip()
+
+            # Determine new values
+            start_time = new_start_time if new_start_time else current_start
+            duration = new_duration_minutes if new_duration_minutes else current_duration
+            end_time = start_time + timedelta(minutes=duration)
+            doctor_name = new_doctor_name if new_doctor_name else current_doctor_name
+            doctor_email = new_doctor_email if new_doctor_email else current_doctor_email
+            service_name = new_service_name if new_service_name else event.get('summary', '').split('-')[0].strip()
+
+            # Check for conflicts if time is changing
+            if new_start_time:
+                # Check doctor conflict
+                if doctor_email:
+                    doctor_conflict = self._check_doctor_conflict(doctor_name, doctor_email, start_time, end_time)
+                    if doctor_conflict:
+                        return {
+                            'error': 'conflict',
+                            'message': f'Dr. {doctor_name} already has an appointment at this time'
+                        }
+
+                # Check patient conflict (exclude current event)
+                patient_conflict = self._check_patient_conflict(patient_email, start_time, end_time, exclude_event_id=event_id)
+                if patient_conflict:
+                    return {
+                        'error': 'conflict',
+                        'message': f'You already have another appointment at this time'
+                    }
+
+            # Update event
+            event['summary'] = f'{service_name} - {patient_name}'
+            event['description'] = f'Service: {service_name}\nPatient: {patient_name} ({patient_email})\nDoctor: {doctor_name} ({doctor_email})'
+            event['start'] = {
+                'dateTime': start_time.isoformat(),
+                'timeZone': 'Asia/Riyadh',
+            }
+            event['end'] = {
+                'dateTime': end_time.isoformat(),
+                'timeZone': 'Asia/Riyadh',
+            }
+
+            # Update in calendar
+            updated_event = self.service.events().update(
+                calendarId=self.calendar_id,
+                eventId=event_id,
+                body=event
+            ).execute()
+
+            return {
+                'id': updated_event['id'],
+                'summary': updated_event.get('summary'),
+                'start_time': updated_event.get('start', {}).get('dateTime'),
+                'end_time': updated_event.get('end', {}).get('dateTime'),
+                'status': 'success'
+            }
+
+        except HttpError as error:
+            print(f"An error occurred: {error}")
+            return {
+                'error': 'api_error',
+                'message': f'Failed to update appointment: {str(error)}'
+            }
+
+    def delete_appointment(self, event_id: str) -> Dict:
+        """
+        Delete an appointment from Google Calendar
+
+        Args:
+            event_id: Google Calendar event ID
+
+        Returns:
+            Success or error dict
+        """
+        try:
+            self.service.events().delete(
+                calendarId=self.calendar_id,
+                eventId=event_id
+            ).execute()
+
+            return {
+                'status': 'success',
+                'message': 'Appointment cancelled successfully'
+            }
+
+        except HttpError as error:
+            print(f"An error occurred: {error}")
+            return {
+                'error': 'api_error',
+                'message': f'Failed to cancel appointment: {str(error)}'
+            }
 
 
 # Singleton instance
