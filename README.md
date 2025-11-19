@@ -11,16 +11,18 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
 **Router + FAQ + Booking + Management Agents**
 - ✅ **Router** - LLM-based intent classification with conversation memory
 - ✅ **FAQ Agent** - RAG-powered Q&A (ChromaDB + Jina embeddings)
-- ✅ **Booking Agent** - Google Calendar integration with conflict detection
+- ✅ **Booking Agent** - Google Calendar integration with conflict detection + email notifications
   - Check patient appointments
   - Show available doctors & services from database
   - Create bookings with duplicate prevention
   - Detects both doctor and patient time conflicts
-- ✅ **Management Agent** - Appointment management with natural language
+  - Sends confirmation emails automatically
+- ✅ **Management Agent** - Appointment management with natural language + email notifications
   - View all upcoming appointments
   - Cancel appointments (by doctor name, service, or date)
   - Reschedule appointments with conflict detection
   - No IDs needed - uses natural references like "my appointment with Dr. Saad"
+  - Sends cancellation/reschedule confirmation emails automatically
 - ✅ Patient selection at startup (knows who you are throughout conversation)
 
 ### Components
@@ -41,11 +43,12 @@ src/
 ├── rag/retriever.py           # ChromaDB + Jina
 ├── tools/
 │   ├── rag_tool.py            # Knowledge base query
-│   ├── booking_tools.py       # Booking operations
-│   └── management_tools.py    # Appointment management
+│   ├── booking_tools.py       # Booking operations + email
+│   └── management_tools.py    # Appointment management + email
 └── services/
     ├── database.py            # Supabase client
-    └── calendar.py            # Google Calendar API
+    ├── calendar.py            # Google Calendar API
+    └── gmail.py               # Email notifications
 
 main.py                        # CLI with patient selection
 init_chromadb.py              # Vector DB initialization
@@ -174,10 +177,10 @@ User Input
 ```
 
 ### Design Principles
-- **1-3 tools per agent** (avoid tool overload)
+- **1-5 tools per agent** (avoid tool overload)
 - **Natural language interface** (no IDs shown to users)
 - **Patient selected at startup** (agent always knows who you are)
-- **8 existing patients in database** (no patient creation)
+- **Auto email notifications** (booking confirmations, cancellations, reschedules)
 - **Appointments in Google Calendar only** (not in database)
 
 ---
