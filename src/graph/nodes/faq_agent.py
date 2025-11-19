@@ -59,9 +59,6 @@ User: "when the clinic open on wed day?"
 You: [Use query_knowledge_base tool]
 Response: "The clinic is open on Wednesday from 9:00 AM to 8:00 PM. Feel free to call ahead to confirm availability!"
 
-User: "كم سعر تنظيف الأسنان؟" (How much is teeth cleaning?)
-You: [Use query_knowledge_base tool]
-Response: "تنظيف الأسنان وتلميعها يبلغ 200 ريال سعودي. يشمل السعر فحص شامل للأسنان واللثة."
 
 User: "Do you accept insurance?"
 You: [Use query_knowledge_base tool]

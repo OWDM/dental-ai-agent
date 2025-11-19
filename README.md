@@ -4,11 +4,11 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
 
 ---
 
-## ✅ Phase 1 & 2: COMPLETED
+## ✅ Phase 1, 2 & 3: COMPLETED
 
 ### What's Built
 
-**Router + FAQ + Booking Agents**
+**Router + FAQ + Booking + Management Agents**
 - ✅ **Router** - LLM-based intent classification with conversation memory
 - ✅ **FAQ Agent** - RAG-powered Q&A (ChromaDB + Jina embeddings)
 - ✅ **Booking Agent** - Google Calendar integration with conflict detection
@@ -16,6 +16,11 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
   - Show available doctors & services from database
   - Create bookings with duplicate prevention
   - Detects both doctor and patient time conflicts
+- ✅ **Management Agent** - Appointment management with natural language
+  - View all upcoming appointments
+  - Cancel appointments (by doctor name, service, or date)
+  - Reschedule appointments with conflict detection
+  - No IDs needed - uses natural references like "my appointment with Dr. Saad"
 - ✅ Patient selection at startup (knows who you are throughout conversation)
 
 ### Components
@@ -30,12 +35,14 @@ src/
 │       ├── router.py          # Intent classification
 │       ├── faq_agent.py       # FAQ with RAG
 │       ├── booking_agent.py   # Booking with Calendar
+│       ├── management_agent.py # Appointment management
 │       └── placeholder.py     # Future agents
 ├── llm/client.py              # OpenRouter (Qwen)
 ├── rag/retriever.py           # ChromaDB + Jina
 ├── tools/
 │   ├── rag_tool.py            # Knowledge base query
-│   └── booking_tools.py       # Booking operations
+│   ├── booking_tools.py       # Booking operations
+│   └── management_tools.py    # Appointment management
 └── services/
     ├── database.py            # Supabase client
     └── calendar.py            # Google Calendar API
@@ -122,13 +129,31 @@ python main.py
 **Booking Agent:**
 ```
 💬 You: I want to book an appointment
-🤖 Assistant: [Shows 10 services and 5 doctors with IDs and prices]
+🤖 Assistant: [Shows 10 services and 5 doctors with names and prices]
 
 💬 You: Teeth cleaning with Dr. Saad on Wednesday at 3:30pm
 🤖 Assistant: ✅ Booked! Service: تنظيف الأسنان, Dr. Saad, Wed Nov 19 at 3:30 PM
 
 💬 You: Book another at 3:30pm with Dr. Layla
 🤖 Assistant: ❌ You already have an appointment at this time
+```
+
+**Management Agent:**
+```
+💬 You: What are my appointments?
+🤖 Assistant: You have 2 upcoming appointments:
+1. Teeth Cleaning
+   Doctor: Dr. Saad Al-Mutairi
+   Time: Wednesday, November 20, 2024 at 3:30 PM
+2. Dental Examination
+   Doctor: Dr. Sarah Ahmed
+   Time: Friday, November 22, 2024 at 10:00 AM
+
+💬 You: Cancel my teeth cleaning appointment
+🤖 Assistant: ✅ Appointment cancelled successfully! ...
+
+💬 You: Reschedule my appointment with Dr. Sarah to next Monday at 2pm
+🤖 Assistant: ✅ Appointment rescheduled successfully! ...
 ```
 
 ---
@@ -144,12 +169,13 @@ User Input
     │
     ├─> FAQ Agent (RAG) ✅
     ├─> Booking Agent (Calendar) ✅
-    ├─> Management Agent ⏳
+    ├─> Management Agent (Calendar) ✅
     └─> Feedback Agent ⏳
 ```
 
 ### Design Principles
 - **1-3 tools per agent** (avoid tool overload)
+- **Natural language interface** (no IDs shown to users)
 - **Patient selected at startup** (agent always knows who you are)
 - **8 existing patients in database** (no patient creation)
 - **Appointments in Google Calendar only** (not in database)
@@ -158,8 +184,7 @@ User Input
 
 ## 📝 Future Phases
 
-- **Phase 3:** Appointment management (modify/cancel)
-- **Phase 4:** Feedback & complaints
+- **Phase 4:** Feedback & complaints agent
 - **Phase 5:** Auto-create support tickets
 - **Phase 6:** Advanced RAG (hybrid retrieval)
 
