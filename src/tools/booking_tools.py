@@ -7,6 +7,7 @@ from datetime import datetime
 from langchain.tools import tool
 from src.services.calendar import get_calendar
 from src.services.database import get_database
+from src.services.gmail import get_gmail
 
 
 @tool
@@ -190,10 +191,88 @@ Date & Time: {formatted_time}
 Duration: {service['duration_minutes']} minutes
 Price: {service['price']} SAR
 
-A confirmation email has been sent to {patient_email}."""
+IMPORTANT: You MUST now call send_booking_confirmation_email() with these exact parameters:
+- patient_email: {patient_email}
+- patient_name: {patient_name}
+- service_name: {service['name']}
+- doctor_name: Dr. {doctor['name']}
+- appointment_datetime: {start_time.strftime('%Y-%m-%d %H:%M')}
+- duration_minutes: {service['duration_minutes']}
+- price: {service['price']}"""
 
     except Exception as e:
         return f"Error creating appointment: {str(e)}"
+
+
+@tool
+def send_booking_confirmation_email(
+    patient_email: str,
+    patient_name: str,
+    service_name: str,
+    doctor_name: str,
+    appointment_datetime: str,
+    duration_minutes: int,
+    price: float
+) -> str:
+    """
+    Send booking confirmation email to patient.
+    Call this AFTER successfully creating a booking to notify the patient.
+
+    Args:
+        patient_email: Patient's email address
+        patient_name: Patient's name
+        service_name: Service name (e.g., "تنظيف الأسنان")
+        doctor_name: Doctor's name (e.g., "Dr. Saad Al-Mutairi")
+        appointment_datetime: Appointment datetime in ISO format (YYYY-MM-DD HH:MM)
+        duration_minutes: Duration in minutes
+        price: Service price in SAR
+
+    Returns:
+        Success or error message
+    """
+    print("\n" + "="*60)
+    print("[TOOL DEBUG] send_booking_confirmation_email called")
+    print(f"[TOOL DEBUG] patient_email: {patient_email}")
+    print(f"[TOOL DEBUG] patient_name: {patient_name}")
+    print(f"[TOOL DEBUG] service_name: {service_name}")
+    print(f"[TOOL DEBUG] doctor_name: {doctor_name}")
+    print(f"[TOOL DEBUG] appointment_datetime: {appointment_datetime}")
+    print(f"[TOOL DEBUG] duration_minutes: {duration_minutes}")
+    print(f"[TOOL DEBUG] price: {price}")
+    print("="*60 + "\n")
+
+    try:
+        # Parse datetime
+        dt = datetime.strptime(appointment_datetime, "%Y-%m-%d %H:%M")
+        print(f"[TOOL DEBUG] Parsed datetime: {dt}")
+
+        # Send email
+        print(f"[TOOL DEBUG] Getting Gmail service...")
+        gmail = get_gmail()
+
+        print(f"[TOOL DEBUG] Calling gmail.send_booking_confirmation()...")
+        result = gmail.send_booking_confirmation(
+            patient_email=patient_email,
+            patient_name=patient_name,
+            service_name=service_name,
+            doctor_name=doctor_name,
+            appointment_datetime=dt,
+            duration_minutes=duration_minutes,
+            price=price
+        )
+
+        print(f"[TOOL DEBUG] Email result: {result}")
+
+        if result['status'] == 'success':
+            return f"✅ Confirmation email sent to {patient_email}"
+        else:
+            return f"⚠️ Booking successful but email failed: {result['message']}"
+
+    except Exception as e:
+        print(f"[TOOL DEBUG] ❌ Exception in send_booking_confirmation_email: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return f"⚠️ Booking successful but email failed: {str(e)}"
 
 
 # Tool list for booking agent
@@ -201,5 +280,6 @@ booking_tools = [
     check_my_bookings,
     get_available_doctors,
     get_available_services,
-    create_new_booking
+    create_new_booking,
+    send_booking_confirmation_email
 ]
