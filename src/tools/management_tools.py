@@ -6,6 +6,7 @@ Tools for viewing, cancelling, and rescheduling appointments
 from datetime import datetime
 from langchain.tools import tool
 from src.services.calendar import get_calendar
+from src.services.gmail import get_gmail
 
 
 @tool
@@ -268,9 +269,145 @@ See you at the new time!"""
         return f"Error rescheduling appointment: {str(e)}"
 
 
+@tool
+def send_cancellation_email(
+    patient_email: str,
+    patient_name: str,
+    service_name: str,
+    doctor_name: str,
+    appointment_datetime: str
+) -> str:
+    """
+    Send cancellation confirmation email to patient.
+    Call this AFTER successfully cancelling an appointment to notify the patient.
+
+    Args:
+        patient_email: Patient's email address
+        patient_name: Patient's name
+        service_name: Service name (e.g., "تنظيف الأسنان")
+        doctor_name: Doctor's name (e.g., "Dr. Saad Al-Mutairi")
+        appointment_datetime: Original appointment datetime in ISO format (YYYY-MM-DD HH:MM)
+
+    Returns:
+        Success or error message
+    """
+    try:
+        # Parse datetime - try multiple formats
+        dt = None
+        for fmt in ["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S"]:
+            try:
+                dt = datetime.strptime(appointment_datetime, fmt)
+                break
+            except ValueError:
+                continue
+
+        if not dt:
+            # Try parsing ISO format with timezone
+            try:
+                dt = datetime.fromisoformat(appointment_datetime.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                return f"⚠️ Cancellation successful but email failed: Invalid datetime format"
+
+        # Send email
+        gmail = get_gmail()
+        result = gmail.send_cancellation_confirmation(
+            patient_email=patient_email,
+            patient_name=patient_name,
+            service_name=service_name,
+            doctor_name=doctor_name,
+            appointment_datetime=dt
+        )
+
+        if result['status'] == 'success':
+            return f"✅ Cancellation email sent to {patient_email}"
+        else:
+            return f"⚠️ Cancellation successful but email failed: {result['message']}"
+
+    except Exception as e:
+        return f"⚠️ Cancellation successful but email failed: {str(e)}"
+
+
+@tool
+def send_reschedule_email(
+    patient_email: str,
+    patient_name: str,
+    service_name: str,
+    doctor_name: str,
+    old_datetime: str,
+    new_datetime: str
+) -> str:
+    """
+    Send reschedule confirmation email to patient.
+    Call this AFTER successfully rescheduling an appointment to notify the patient.
+
+    Args:
+        patient_email: Patient's email address
+        patient_name: Patient's name
+        service_name: Service name (e.g., "تنظيف الأسنان")
+        doctor_name: Doctor's name (e.g., "Dr. Saad Al-Mutairi")
+        old_datetime: Previous appointment datetime in ISO format (YYYY-MM-DD HH:MM)
+        new_datetime: New appointment datetime in ISO format (YYYY-MM-DD HH:MM)
+
+    Returns:
+        Success or error message
+    """
+    try:
+        # Parse datetimes - try multiple formats
+        old_dt = None
+        new_dt = None
+
+        for fmt in ["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S"]:
+            try:
+                if not old_dt:
+                    old_dt = datetime.strptime(old_datetime, fmt)
+                if not new_dt:
+                    new_dt = datetime.strptime(new_datetime, fmt)
+                if old_dt and new_dt:
+                    break
+            except ValueError:
+                continue
+
+        # Try parsing ISO format with timezone if previous formats failed
+        if not old_dt:
+            try:
+                old_dt = datetime.fromisoformat(old_datetime.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                pass
+
+        if not new_dt:
+            try:
+                new_dt = datetime.fromisoformat(new_datetime.replace('Z', '+00:00')).replace(tzinfo=None)
+            except:
+                pass
+
+        if not old_dt or not new_dt:
+            return f"⚠️ Reschedule successful but email failed: Invalid datetime format"
+
+        # Send email
+        gmail = get_gmail()
+        result = gmail.send_reschedule_confirmation(
+            patient_email=patient_email,
+            patient_name=patient_name,
+            service_name=service_name,
+            doctor_name=doctor_name,
+            old_datetime=old_dt,
+            new_datetime=new_dt
+        )
+
+        if result['status'] == 'success':
+            return f"✅ Reschedule confirmation email sent to {patient_email}"
+        else:
+            return f"⚠️ Reschedule successful but email failed: {result['message']}"
+
+    except Exception as e:
+        return f"⚠️ Reschedule successful but email failed: {str(e)}"
+
+
 # Tool list for management agent
 management_tools = [
     view_my_appointments,
     cancel_appointment,
-    reschedule_appointment
+    reschedule_appointment,
+    send_cancellation_email,
+    send_reschedule_email
 ]
