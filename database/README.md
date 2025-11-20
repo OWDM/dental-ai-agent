@@ -81,7 +81,6 @@ Tracks every AI conversation for dashboard analytics.
 - `appointment_modification`
 - `appointment_cancellation`
 - `complaint`
-- `feedback`
 - `general_inquiry`
 
 **conversation_history JSON structure:**
@@ -104,27 +103,6 @@ Tracks every AI conversation for dashboard analytics.
 
 ---
 
-### 5. **feedback**
-Stores patient feedback and complaints.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | UUID | Primary key (auto-generated) |
-| `patient_id` | UUID | Foreign key to patients (nullable) |
-| `feedback_type` | VARCHAR(50) | `complaint`, `positive`, or `suggestion` |
-| `category` | VARCHAR(100) | Feedback category |
-| `message` | TEXT | Feedback message |
-| `status` | VARCHAR(50) | `resolved` or `escalated` |
-| `created_at` | TIMESTAMP | Submission timestamp |
-| `resolved_at` | TIMESTAMP | Resolution timestamp (nullable) |
-
-**Common categories:**
-- `appointment_delay`
-- `staff_service`
-- `facility`
-- `treatment_quality`
-
----
 
 ## Connection Information
 
