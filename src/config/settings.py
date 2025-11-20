@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     max_retries: int = 2
     temperature: float = 0.7
 
+    # LangSmith Configuration (Tracing & Debugging)
+    langsmith_api_key: str = os.getenv("LANGSMITH_API_KEY", "")
+    langsmith_tracing: str = os.getenv("LANGSMITH_TRACING", "false")
+    langsmith_project: str = os.getenv("LANGSMITH_PROJECT", "dental-ai-agent")
+
     class Config:
         env_file = ".env"
         case_sensitive = False
