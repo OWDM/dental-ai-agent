@@ -113,7 +113,25 @@ def main():
             if user_input.lower() in ["quit", "exit", "q"]:
                 print("\n🏁 Thank you for using our AI assistant!")
                 print(f"📊 Conversation ID: {state['conversation_id']}")
-                print(f"📝 Intents detected: {', '.join(state['ticket_types']) or 'None'}")
+                
+                # Trigger Ticket Manager
+                from src.services.ticket_manager import ticket_manager
+                import asyncio
+                
+                try:
+                    # Always try to get the running loop first
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(ticket_manager.process_conversation(state))
+                    except RuntimeError:
+                        # No running loop, create a new one
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        loop.run_until_complete(ticket_manager.process_conversation(state))
+                        loop.close()
+                except Exception as e:
+                    print(f"❌ Error saving ticket: {e}")
+                
                 print("\nGoodbye! 👋\n")
                 break
 
@@ -128,11 +146,24 @@ def main():
             # Add user message to state
             state["messages"].append(HumanMessage(content=user_input))
 
-                # Run the agent
+            # Run the agent
             try:
                 print("\n⏳ Processing...", end="", flush=True)
                 import asyncio
-                result = asyncio.run(app.ainvoke(state))
+                
+                # Use robust loop handling for the agent execution
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we are in a loop (unlikely in sync main), create a task
+                    # But main() is sync, so this branch shouldn't hit unless nested
+                    result = loop.run_until_complete(app.ainvoke(state))
+                except RuntimeError:
+                    # Standard case for sync main()
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(app.ainvoke(state))
+                    # Keep loop open for next iteration
+
                 print("\r" + " " * 20 + "\r", end="")  # Clear the "Processing..." message
 
                 # Update state with result
@@ -161,7 +192,25 @@ def main():
                 state["last_error"] = str(e)
 
     except KeyboardInterrupt:
-        print("\n\nGoodbye! 👋\n")
+        print("\n\n⚠️  Interrupted. Saving conversation...")
+        
+        # Trigger Ticket Manager on Ctrl+C
+        try:
+            from src.services.ticket_manager import ticket_manager
+            import asyncio
+            
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(ticket_manager.process_conversation(state))
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(ticket_manager.process_conversation(state))
+                loop.close()
+        except Exception as e:
+            print(f"❌ Failed to save ticket on exit: {e}")
+
+        print("\nGoodbye! 👋\n")
         sys.exit(0)
 
     except Exception as e:

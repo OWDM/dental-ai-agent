@@ -4,7 +4,7 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
 
 ---
 
-## ✅ Phase 1, 2 & 3: COMPLETED
+## ✅ Phase 1, 2, 3 & 5: COMPLETED
 
 ### What's Built
 
@@ -28,6 +28,11 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
   - Detects hostility, threats, and medical emergencies
   - Handles "Talk to human" requests
 - ✅ Patient selection at startup (knows who you are throughout conversation)
+- ✅ **Auto-Ticket Creation** - Post-conversation analysis and database archiving
+  - LLM-powered conversation summarization
+  - Automatic ticket categorization
+  - Self-correcting validation for database constraints
+  - Saves to Supabase on exit (quit or Ctrl+C)
 
 ### Components
 
@@ -54,7 +59,8 @@ src/
 └── services/
     ├── database.py            # Supabase client
     ├── calendar.py            # Google Calendar API
-    └── gmail.py               # Email notifications
+    ├── gmail.py               # Email notifications
+    └── ticket_manager.py      # Post-conversation ticket creation
 
 main.py                        # CLI with patient selection
 init_chromadb.py              # Vector DB initialization
@@ -195,8 +201,8 @@ User Input
 
 ## 📝 Future Phases
 
-- **Phase 4:** Feedback & complaints agent (I canceled this phase)
-- **Phase 5:** Auto-create support tickets
+- **Phase 4:** Feedback & complaints agent (Canceled)
+- ~~**Phase 5:** Auto-create support tickets~~ ✅ **COMPLETED**
 
 ---
 
