@@ -23,6 +23,10 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
   - Reschedule appointments with conflict detection
   - No IDs needed - uses natural references like "my appointment with Dr. Saad"
   - Sends cancellation/reschedule confirmation emails automatically
+- ✅ **Escalation Agent** - Human handoff for emergencies and hostility
+  - Parallel execution with intent classification (Zero Latency)
+  - Detects hostility, threats, and medical emergencies
+  - Handles "Talk to human" requests
 - ✅ Patient selection at startup (knows who you are throughout conversation)
 
 ### Components
@@ -34,11 +38,13 @@ src/
 │   ├── state.py               # AgentState schema
 │   ├── workflow.py            # LangGraph workflow
 │   └── nodes/
-│       ├── router.py          # Intent classification
+│       ├── sentiment.py       # Sentiment guardrail
+│       ├── intent.py          # Intent classification
+│       ├── decision.py        # Routing logic
 │       ├── faq_agent.py       # FAQ with RAG
 │       ├── booking_agent.py   # Booking with Calendar
 │       ├── management_agent.py # Appointment management
-│       └── placeholder.py     # Future agents
+│       └── human_handoff.py   # Escalation handler
 ├── llm/client.py              # OpenRouter (Qwen)
 ├── rag/retriever.py           # ChromaDB + Jina
 ├── tools/
@@ -168,12 +174,16 @@ python main.py
 ```
 User Input
     ↓
-[Router Agent]
+[Parallel Execution]
+ ├─> Sentiment Guardrail (Safety)
+ └─> Intent Classification (Logic)
+    ↓
+[Decision Node]
     │
+    ├─> Human Handoff (Escalation) ✅
     ├─> FAQ Agent (RAG) ✅
     ├─> Booking Agent (Calendar) ✅
-    ├─> Management Agent (Calendar) ✅
-    └─> Feedback Agent ⏳
+    └─> Management Agent (Calendar) ✅
 ```
 
 ### Design Principles
