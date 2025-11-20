@@ -17,7 +17,7 @@ class AgentState(TypedDict):
 
     # Conversation context
     messages: Annotated[list, add_messages]  # LangChain messages with automatic deduplication
-    current_intent: Optional[str]  # Current classified intent: "faq", "booking", "management", "feedback", "escalate"
+    current_intent: Optional[str]  # Current classified intent: "faq", "booking", "management", "escalate"
 
     # Patient data (populated during conversation)
     patient_id: Optional[str]
@@ -41,6 +41,11 @@ class AgentState(TypedDict):
     conversation_id: str  # Unique ID for this conversation session
     ticket_types: list[str]  # Array of ticket types: ["appointment_booking", "general_inquiry", etc.]
     escalated: bool  # Whether this conversation was escalated to human
+    
+    # Escalation Logic
+    sentiment_score: Optional[str]  # "positive", "neutral", "negative", "hostile"
+    escalation_reason: Optional[str]  # Why we are escalating
+    should_escalate: bool  # Signal to override normal routing
 
     # Agent routing
-    next_agent: Optional[str]  # Next agent to route to: "faq", "booking", "management", "feedback", "end"
+    next_agent: Optional[str]  # Next agent to route to: "faq", "booking", "management", "end"
