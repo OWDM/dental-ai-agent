@@ -73,8 +73,6 @@ init_chromadb.py              # Vector DB initialization
 - `doctors` - id, name, specialization, google_calendar_id, available
 - `services` - id, name, description, duration_minutes, price
 - `support_tickets` - conversation tracking
-- `feedback` - patient feedback
-
 ---
 
 ## 🏃 Quick Start
@@ -197,9 +195,8 @@ User Input
 
 ## 📝 Future Phases
 
-- **Phase 4:** Feedback & complaints agent
+- **Phase 4:** Feedback & complaints agent (I canceled this phase)
 - **Phase 5:** Auto-create support tickets
-- **Phase 6:** Advanced RAG (hybrid retrieval)
 
 ---
 
