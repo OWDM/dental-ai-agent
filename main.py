@@ -128,10 +128,11 @@ def main():
             # Add user message to state
             state["messages"].append(HumanMessage(content=user_input))
 
-            # Run the agent
+                # Run the agent
             try:
                 print("\n⏳ Processing...", end="", flush=True)
-                result = app.invoke(state)
+                import asyncio
+                result = asyncio.run(app.ainvoke(state))
                 print("\r" + " " * 20 + "\r", end="")  # Clear the "Processing..." message
 
                 # Update state with result

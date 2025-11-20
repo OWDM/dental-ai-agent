@@ -6,11 +6,14 @@ Defines the state graph and routing logic
 import uuid
 from langgraph.graph import StateGraph, END
 from src.graph.state import AgentState
-from src.graph.nodes.router import router_node
+from src.graph.nodes.sentiment import sentiment_node
+from src.graph.nodes.intent import intent_node
+from src.graph.nodes.decision import decision_node
 from src.graph.nodes.faq_agent import faq_agent_node
 from src.graph.nodes.booking_agent import booking_agent_node
 from src.graph.nodes.management_agent import management_agent_node
 from src.graph.nodes.placeholder import placeholder_node
+from src.graph.nodes.human_handoff import human_handoff_node
 
 
 def route_to_agent(state: AgentState) -> str:
@@ -33,8 +36,8 @@ def route_to_agent(state: AgentState) -> str:
         "faq": "faq_agent",
         "booking": "booking_agent",
         "management": "management_agent",
-        "feedback": "placeholder",
-        "escalate": "placeholder",
+        "escalate": "human_handoff",
+        "human_handoff": "human_handoff",
         "end": END,
     }
 
@@ -77,24 +80,33 @@ def create_workflow():
     workflow = StateGraph(AgentState)
 
     # Add nodes
-    workflow.add_node("router", router_node)
+    workflow.add_node("sentiment", sentiment_node)
+    workflow.add_node("intent", intent_node)
+    workflow.add_node("decision", decision_node)
     workflow.add_node("faq_agent", faq_agent_node)
     workflow.add_node("booking_agent", booking_agent_node)
     workflow.add_node("management_agent", management_agent_node)
     workflow.add_node("placeholder", placeholder_node)
+    workflow.add_node("human_handoff", human_handoff_node)
 
-    # Set entry point
-    workflow.set_entry_point("router")
+    # Set entry point - Start goes to BOTH sentiment and intent in parallel
+    workflow.set_entry_point("sentiment")
+    workflow.set_entry_point("intent")
+    
+    # Both parallel nodes feed into decision
+    workflow.add_edge("sentiment", "decision")
+    workflow.add_edge("intent", "decision")
 
-    # Add conditional routing from router to specialized agents
+    # Add conditional routing from decision to specialized agents
     workflow.add_conditional_edges(
-        "router",
+        "decision",
         route_to_agent,
         {
             "faq_agent": "faq_agent",
             "booking_agent": "booking_agent",
             "management_agent": "management_agent",
             "placeholder": "placeholder",
+            "human_handoff": "human_handoff",
             END: END,
         }
     )
@@ -104,6 +116,7 @@ def create_workflow():
     workflow.add_edge("booking_agent", END)
     workflow.add_edge("management_agent", END)
     workflow.add_edge("placeholder", END)
+    workflow.add_edge("human_handoff", END)
 
     # Compile the graph
     app = workflow.compile()
