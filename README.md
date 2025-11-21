@@ -11,16 +11,19 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
 **Router + FAQ + Booking + Management Agents**
 - ✅ **Router** - LLM-based intent classification with conversation memory
 - ✅ **FAQ Agent** - RAG-powered Q&A (ChromaDB + Jina embeddings)
+  - Real-time date awareness (answers "Is the clinic open tomorrow?" correctly)
 - ✅ **Booking Agent** - Google Calendar integration with conflict detection + email notifications
   - Check patient appointments
   - Show available doctors & services from database
   - Create bookings with duplicate prevention
   - Detects both doctor and patient time conflicts
+  - **Prevents booking in the past** (real-time date/time awareness)
   - Sends confirmation emails automatically
 - ✅ **Management Agent** - Appointment management with natural language + email notifications
   - View all upcoming appointments
   - Cancel appointments (by doctor name, service, or date)
   - Reschedule appointments with conflict detection
+  - **Prevents rescheduling to past dates** (real-time date/time awareness)
   - No IDs needed - uses natural references like "my appointment with Dr. Saad"
   - Sends cancellation/reschedule confirmation emails automatically
 - ✅ **Escalation Agent** - Human handoff for emergencies and hostility
@@ -28,10 +31,17 @@ AI-powered customer service agent for dental clinics using **LangGraph** and **o
   - Detects hostility, threats, and medical emergencies
   - Handles "Talk to human" requests
 - ✅ Patient selection at startup (knows who you are throughout conversation)
+- ✅ **TRT Architecture** (Translate-Reason-Translate) - Bilingual support
+  - Auto-detects Arabic/English input
+  - Translates Arabic → English for processing
+  - Translates response back to Arabic
+  - Uses Cohere model via OpenRouter for translations
+  - Maintains dental terminology glossary for accurate translations
 - ✅ **Auto-Ticket Creation** - Post-conversation analysis and database archiving
   - LLM-powered conversation summarization
   - Automatic ticket categorization
   - Self-correcting validation for database constraints
+  - Proper timestamps: `created_at` (conversation start), `updated_at` (conversation end), `resolved_at` (only when resolved)
   - Saves to Supabase on exit (quit or Ctrl+C)
 
 ### Components
@@ -60,6 +70,7 @@ src/
     ├── database.py            # Supabase client
     ├── calendar.py            # Google Calendar API
     ├── gmail.py               # Email notifications
+    ├── translator.py          # TRT translation service
     └── ticket_manager.py      # Post-conversation ticket creation
 
 main.py                        # CLI with patient selection
@@ -176,7 +187,10 @@ python main.py
 ### Hierarchical Multi-Agent System
 
 ```
-User Input
+User Input (Arabic/English)
+    ↓
+[TRT Pre-Processing]
+ └─> Detect language → Translate to English (if Arabic)
     ↓
 [Parallel Execution]
  ├─> Sentiment Guardrail (Safety)
@@ -188,14 +202,19 @@ User Input
     ├─> FAQ Agent (RAG) ✅
     ├─> Booking Agent (Calendar) ✅
     └─> Management Agent (Calendar) ✅
+    ↓
+[TRT Post-Processing]
+ └─> Translate response to Arabic (if needed)
 ```
 
 ### Design Principles
 - **1-5 tools per agent** (avoid tool overload)
 - **Natural language interface** (no IDs shown to users)
+- **Privacy protection** (email addresses never shown to patients)
 - **Patient selected at startup** (agent always knows who you are)
 - **Auto email notifications** (booking confirmations, cancellations, reschedules)
 - **Appointments in Google Calendar only** (not in database)
+- **Token cost control** (max_tokens=10000 to manage API costs)
 
 ---
 
@@ -209,7 +228,8 @@ User Input
 ## 🔧 Tech Stack
 
 - **LangGraph** - Agent workflow
-- **Qwen 3 14B** - LLM (via OpenRouter)
+- **Qwen 3 14B** - Main LLM (via OpenRouter)
+- **Cohere Command R7B** - Translation LLM (via OpenRouter)
 - **Jina AI v3** - Embeddings
 - **ChromaDB** - Vector database
 - **Supabase** - PostgreSQL
