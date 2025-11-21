@@ -19,6 +19,10 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]  # LangChain messages with automatic deduplication
     current_intent: Optional[str]  # Current classified intent: "faq", "booking", "management", "escalate"
 
+    # TRT (Translate-Reason-Translate) architecture
+    original_language: Optional[str]  # "arabic" or "english" - tracks user's input language
+    original_input: Optional[str]  # Preserves original Arabic text for logging
+
     # Patient data (populated during conversation)
     patient_id: Optional[str]
     patient_name: Optional[str]

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     openrouter_base_url: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     openrouter_model: str = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-14b")
 
+    # Translation Configuration (Cohere via OpenRouter)
+    translation_model: str = os.getenv("TRANSLATION_MODEL", "cohere/command-r7b-12-2024")
+
     # Jina AI Configuration (Embeddings)
     jina_api_key: str = os.getenv("JINA_API_KEY", "")
     jina_embedding_model: str = os.getenv("JINA_EMBEDDING_MODEL", "jina-embeddings-v3")
@@ -47,6 +50,9 @@ class Settings(BaseSettings):
     # Agent Configuration
     max_retries: int = 2
     temperature: float = 0.7
+
+    # Debug Mode (TRT Architecture)
+    debug_mode: bool = os.getenv("DEBUG_MODE", "true").lower() == "true"
 
     # LangSmith Configuration (Tracing & Debugging)
     langsmith_api_key: str = os.getenv("LANGSMITH_API_KEY", "")

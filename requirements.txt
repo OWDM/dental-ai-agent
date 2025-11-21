@@ -23,3 +23,6 @@ chromadb==0.5.23
 # Data validation
 pydantic==2.10.3
 pydantic-settings==2.6.1
+
+# Terminal colors for debugging
+colorama==0.4.6
