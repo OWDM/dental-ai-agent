@@ -3,6 +3,7 @@ FAQ Agent Node
 Answers frequently asked questions using RAG (Retrieval-Augmented Generation)
 """
 
+from datetime import datetime
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,8 +12,11 @@ from src.llm.client import llm_agent
 from src.tools.rag_tool import rag_tools
 
 
-# System prompt for FAQ agent
-FAQ_SYSTEM_PROMPT = """You are a helpful and friendly AI customer service assistant for Riyadh Dental Care Clinic.
+# System prompt for FAQ agent - current time will be injected dynamically
+FAQ_SYSTEM_PROMPT_TEMPLATE = """You are a helpful and friendly AI customer service assistant for Riyadh Dental Care Clinic.
+
+**CURRENT DATE AND TIME: {current_datetime}**
+Use this to answer questions about "today", "tomorrow", specific days of the week, etc.
 
 Your role is to answer patient questions about the clinic using the knowledge base tool.
 
@@ -69,8 +73,12 @@ Response: "Yes, we accept most major insurance providers including Bupa, Tawuniy
 def create_faq_agent():
     """Create the FAQ agent with RAG tool"""
 
+    # Inject current datetime into the system prompt
+    current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S (%A)')
+    system_prompt = FAQ_SYSTEM_PROMPT_TEMPLATE.format(current_datetime=current_datetime)
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", FAQ_SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
@@ -122,7 +130,8 @@ def faq_agent_node(state: AgentState) -> AgentState:
 
 Patient Question: {last_message}
 
-Remember: You know who this patient is from the system. Use their name when appropriate."""
+Remember: You know who this patient is from the system. Use their name when appropriate.
+Note: Patient email is for reference only - NEVER include it in your response to the patient."""
 
         # Get chat history (exclude the last message since it's the input)
         chat_history = messages[:-1] if len(messages) > 1 else []

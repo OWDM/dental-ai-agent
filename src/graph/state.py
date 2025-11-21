@@ -43,6 +43,7 @@ class AgentState(TypedDict):
 
     # Support ticket tracking
     conversation_id: str  # Unique ID for this conversation session
+    conversation_start_time: Optional[str]  # ISO timestamp when conversation started (for created_at)
     ticket_types: list[str]  # Array of ticket types: ["appointment_booking", "general_inquiry", etc.]
     escalated: bool  # Whether this conversation was escalated to human
     

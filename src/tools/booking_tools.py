@@ -191,9 +191,7 @@ Date & Time: {formatted_time}
 Duration: {service['duration_minutes']} minutes
 Price: {service['price']} SAR
 
-IMPORTANT: You MUST now call send_booking_confirmation_email() with these exact parameters:
-- patient_email: {patient_email}
-- patient_name: {patient_name}
+IMPORTANT: You MUST now call send_booking_confirmation_email() using the patient information from your context and these appointment details:
 - service_name: {service['name']}
 - doctor_name: {doctor['name']}
 - appointment_datetime: {start_time.strftime('%Y-%m-%d %H:%M')}
@@ -264,7 +262,7 @@ def send_booking_confirmation_email(
         print(f"[TOOL DEBUG] Email result: {result}")
 
         if result['status'] == 'success':
-            return f"✅ Confirmation email sent to {patient_email}"
+            return "✅ Confirmation email has been sent successfully."
         else:
             return f"⚠️ Booking successful but email failed: {result['message']}"
 

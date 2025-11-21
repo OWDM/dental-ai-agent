@@ -34,6 +34,7 @@ def get_llm(temperature: float = None, streaming: bool = False):
         base_url=settings.openrouter_base_url,
         streaming=streaming,
         request_timeout=30,  # 30 second timeout
+        max_tokens=10000,  # Limit output tokens to control costs
     )
 
 
@@ -62,6 +63,7 @@ def get_translation_llm(temperature: float = 0.1, streaming: bool = False):
         base_url=settings.openrouter_base_url,
         streaming=streaming,
         request_timeout=30,  # 30 second timeout
+        max_tokens=10000,  # Translations are short
     )
 
 
