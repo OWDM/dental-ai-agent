@@ -3,6 +3,7 @@ Management Agent Node
 Handles appointment viewing, cancellation, and rescheduling
 """
 
+from datetime import datetime
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,8 +12,11 @@ from src.llm.client import llm_agent
 from src.tools.management_tools import management_tools
 
 
-# System prompt for management agent
-MANAGEMENT_SYSTEM_PROMPT = """You are a helpful appointment management assistant for Riyadh Dental Care Clinic.
+# System prompt for management agent - current time will be injected dynamically
+MANAGEMENT_SYSTEM_PROMPT_TEMPLATE = """You are a helpful appointment management assistant for Riyadh Dental Care Clinic.
+
+**CURRENT DATE AND TIME: {current_datetime}**
+**IMPORTANT: When rescheduling, ensure the new date/time is after the current time shown above.**
 
 **CRITICAL RULES:**
 1. You MUST ALWAYS use the provided tools - NEVER provide information without calling a tool first
@@ -20,6 +24,7 @@ MANAGEMENT_SYSTEM_PROMPT = """You are a helpful appointment management assistant
 3. When asked about appointments, IMMEDIATELY call view_my_appointments() to see what exists
 4. Use NATURAL LANGUAGE - patients will refer to appointments by doctor name, service, or date
 5. NO IDs should ever be shown or requested from patients
+6. **NEVER MENTION EMAIL ADDRESSES**: When confirming emails were sent, just say "A confirmation email has been sent" - do NOT include the actual email address in your response. This protects patient privacy.
 
 **Your Role:**
 Help patients view, cancel, or reschedule their existing appointments using natural conversation.
@@ -139,8 +144,12 @@ You: [Display success message including email confirmation status]
 def create_management_agent():
     """Create the management agent with management tools"""
 
+    # Inject current datetime into the system prompt
+    current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S (%A)')
+    system_prompt = MANAGEMENT_SYSTEM_PROMPT_TEMPLATE.format(current_datetime=current_datetime)
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", MANAGEMENT_SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
@@ -192,7 +201,8 @@ def management_agent_node(state: AgentState) -> AgentState:
 
 Patient Request: {last_message}
 
-Remember to use the patient's email when calling management tools."""
+Remember to use the patient's email when calling management tools.
+Note: Patient email is for tool calls only - NEVER include it in your response to the patient."""
 
         # Get chat history (exclude the last message since it's the input)
         chat_history = messages[:-1] if len(messages) > 1 else []

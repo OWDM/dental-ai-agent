@@ -19,6 +19,10 @@ class AgentState(TypedDict):
     messages: Annotated[list, add_messages]  # LangChain messages with automatic deduplication
     current_intent: Optional[str]  # Current classified intent: "faq", "booking", "management", "escalate"
 
+    # TRT (Translate-Reason-Translate) architecture
+    original_language: Optional[str]  # "arabic" or "english" - tracks user's input language
+    original_input: Optional[str]  # Preserves original Arabic text for logging
+
     # Patient data (populated during conversation)
     patient_id: Optional[str]
     patient_name: Optional[str]
@@ -39,6 +43,7 @@ class AgentState(TypedDict):
 
     # Support ticket tracking
     conversation_id: str  # Unique ID for this conversation session
+    conversation_start_time: Optional[str]  # ISO timestamp when conversation started (for created_at)
     ticket_types: list[str]  # Array of ticket types: ["appointment_booking", "general_inquiry", etc.]
     escalated: bool  # Whether this conversation was escalated to human
     

@@ -3,6 +3,7 @@ Booking Agent Node
 Handles appointment booking and scheduling
 """
 
+from datetime import datetime
 from langchain_core.messages import AIMessage, SystemMessage
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -11,8 +12,11 @@ from src.llm.client import llm_agent
 from src.tools.booking_tools import booking_tools
 
 
-# System prompt for booking agent
-BOOKING_SYSTEM_PROMPT = """You are a helpful appointment booking assistant for Riyadh Dental Care Clinic.
+# System prompt for booking agent - current time will be injected dynamically
+BOOKING_SYSTEM_PROMPT_TEMPLATE = """You are a helpful appointment booking assistant for Riyadh Dental Care Clinic.
+
+**CURRENT DATE AND TIME: {current_datetime}**
+**IMPORTANT: You must NEVER book appointments in the past. Always ensure the requested date/time is after the current time shown above.**
 
 **CRITICAL RULES:**
 1. You MUST ALWAYS use the provided tools - NEVER provide information without calling a tool first
@@ -20,6 +24,7 @@ BOOKING_SYSTEM_PROMPT = """You are a helpful appointment booking assistant for R
 3. NEVER tell patients to "call" or "email" - you have the tools to book directly
 4. When a patient wants to book, IMMEDIATELY call get_available_services() and get_available_doctors()
 5. **NEVER SHOW IDs TO THE PATIENT**: The tools will return lists with IDs (e.g., "id: 1", "doctor_id: 5"). You need these IDs for your internal tool calls, but you must **NEVER** display them to the patient. Only show names, prices, durations, and descriptions.
+6. **NEVER MENTION EMAIL ADDRESSES**: When confirming emails were sent, just say "A confirmation email has been sent" - do NOT include the actual email address in your response. This protects patient privacy.
 
 **Your Role:**
 Help patients check their appointments and book new ones using the tools below.
@@ -113,14 +118,19 @@ You: [After BOTH tools complete, display success message including actual email 
 - If doctor/service not found: Show available options again (without IDs)
 - If time conflict: Suggest asking for alternative time
 - If invalid date format: Ask patient to specify date more clearly
+- If date/time is in the past: Politely inform the patient and ask for a future date/time
 """
 
 
 def create_booking_agent():
     """Create the booking agent with booking tools"""
 
+    # Inject current datetime into the system prompt
+    current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S (%A)')
+    system_prompt = BOOKING_SYSTEM_PROMPT_TEMPLATE.format(current_datetime=current_datetime)
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", BOOKING_SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
         ("placeholder", "{agent_scratchpad}"),
@@ -172,7 +182,8 @@ def booking_agent_node(state: AgentState) -> AgentState:
 
 Patient Request: {last_message}
 
-Remember to use the patient's email and name when calling booking tools."""
+Remember to use the patient's email and name when calling booking tools.
+Note: Patient email is for tool calls only - NEVER include it in your response to the patient."""
 
         # Get chat history (exclude the last message since it's the input)
         chat_history = messages[:-1] if len(messages) > 1 else []

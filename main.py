@@ -4,10 +4,15 @@ Interactive command-line interface for testing the agent
 """
 
 import sys
+import time
+from colorama import Fore
 from langchain_core.messages import HumanMessage
 from src.graph.workflow import create_workflow, initialize_state
 from src.config.settings import settings
 from src.services.database import get_database
+from src.llm.client import llm_translator
+from src.services.translator import get_translator
+from src.utils.debug import debug
 
 
 def print_banner():
@@ -16,7 +21,9 @@ def print_banner():
     print("🦷 RIYADH DENTAL CARE CLINIC - AI ASSISTANT")
     print("=" * 60)
     print(f"LLM: {settings.openrouter_model} (OpenRouter)")
+    print(f"Translation: {settings.translation_model}")
     print(f"Embeddings: {settings.jina_embedding_model}")
+    print(f"Debug Mode: {'ON' if settings.debug_mode else 'OFF'}")
     print("=" * 60)
     print("\nType your message and press Enter to chat.")
     print("Type 'quit', 'exit', or 'q' to end the conversation.")
@@ -92,7 +99,17 @@ def main():
         # Create workflow
         print("Initializing AI agent...", end="", flush=True)
         app = create_workflow()
-        print(" ✅ Ready!\n")
+
+        # Initialize translator for TRT architecture
+        translator = get_translator(llm_translator)
+
+        # Set debug mode based on settings
+        if settings.debug_mode:
+            debug.enable()
+            print(" ✅ Ready! (Debug Mode: ON)\n")
+        else:
+            debug.disable()
+            print(" ✅ Ready!\n")
 
         # Initialize state with patient data
         state = initialize_state()
@@ -143,14 +160,52 @@ def main():
             if not user_input:
                 continue
 
-            # Add user message to state
-            state["messages"].append(HumanMessage(content=user_input))
+            # TRT Pre-processing: Detect language and translate if Arabic
+            detected_language = translator.detect_language(user_input)
+            state["original_language"] = detected_language
+
+            debug.print_header("🔍 TRT PRE-PROCESSING", color=Fore.MAGENTA)
+            debug.print_state_info(detected_language, len(state["messages"]))
+
+            if detected_language == "arabic":
+                # Store original Arabic input for logging
+                state["original_input"] = user_input
+
+                # Translate Arabic to English before adding to state
+                try:
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+
+                    translated_input = loop.run_until_complete(translator.translate_to_english(user_input))
+                    state["messages"].append(HumanMessage(content=translated_input))
+
+                    # Show what the agent will see
+                    debug.print_input(translated_input, "AGENT WILL SEE (English)", color=Fore.LIGHTGREEN_EX)
+
+                except Exception as e:
+                    print_message("system", f"Translation error: {str(e)}")
+                    debug.print_error(str(e))
+                    continue
+            else:
+                # English input - add directly to state
+                state["original_input"] = None
+                state["messages"].append(HumanMessage(content=user_input))
+
+                # Show what the agent will see
+                debug.print_input(user_input, "AGENT WILL SEE (English)", color=Fore.LIGHTGREEN_EX)
 
             # Run the agent
             try:
                 print("\n⏳ Processing...", end="", flush=True)
                 import asyncio
-                
+
+                # Time the agent execution
+                agent_start_time = time.time()
+
                 # Use robust loop handling for the agent execution
                 try:
                     loop = asyncio.get_running_loop()
@@ -164,16 +219,46 @@ def main():
                     result = loop.run_until_complete(app.ainvoke(state))
                     # Keep loop open for next iteration
 
+                agent_elapsed = time.time() - agent_start_time
+
                 print("\r" + " " * 20 + "\r", end="")  # Clear the "Processing..." message
 
                 # Update state with result
                 state = result
 
-                # Print the assistant's response
+                # Debug: Show agent output
+                debug.print_header("🧠 AGENT PROCESSING (Qwen)", color=Fore.LIGHTBLUE_EX)
+
+                # TRT Post-processing: Translate response back to Arabic if needed
                 if state["messages"]:
                     last_message = state["messages"][-1]
                     if hasattr(last_message, "content"):
-                        print_message("assistant", last_message.content)
+                        response_content = last_message.content
+
+                        # Show agent output and timing
+                        if state.get("current_intent"):
+                            debug.print_agent_flow(state["current_intent"], state.get("next_agent", "unknown"))
+
+                        debug.print_output(response_content, "AGENT PRODUCED (English)", color=Fore.LIGHTBLUE_EX)
+                        debug.print_metrics(agent_elapsed, tokens=None)
+
+                        # If original input was Arabic, translate response to Arabic
+                        if state.get("original_language") == "arabic":
+                            debug.print_header("🔄 TRT POST-PROCESSING", color=Fore.MAGENTA)
+                            try:
+                                translated_response = loop.run_until_complete(
+                                    translator.translate_to_arabic(response_content)
+                                )
+                                debug.print_separator("=", length=80, color=Fore.GREEN)
+                                print_message("assistant", translated_response)
+                            except Exception as e:
+                                print_message("system", f"Translation error: {str(e)}")
+                                debug.print_error(str(e))
+                                print_message("assistant", response_content)  # Fallback to English
+                        else:
+                            # Original input was English, print response as-is
+                            debug.print_separator("=", length=80, color=Fore.GREEN)
+                            print_message("assistant", response_content)
 
                 # Debug info (optional - can be removed in production)
                 if state.get("current_intent"):

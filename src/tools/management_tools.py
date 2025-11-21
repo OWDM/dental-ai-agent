@@ -319,7 +319,7 @@ def send_cancellation_email(
         )
 
         if result['status'] == 'success':
-            return f"✅ Cancellation email sent to {patient_email}"
+            return "✅ Cancellation confirmation email has been sent successfully."
         else:
             return f"⚠️ Cancellation successful but email failed: {result['message']}"
 
@@ -395,7 +395,7 @@ def send_reschedule_email(
         )
 
         if result['status'] == 'success':
-            return f"✅ Reschedule confirmation email sent to {patient_email}"
+            return "✅ Reschedule confirmation email has been sent successfully."
         else:
             return f"⚠️ Reschedule successful but email failed: {result['message']}"
 

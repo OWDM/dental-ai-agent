@@ -4,6 +4,7 @@ Defines the state graph and routing logic
 """
 
 import uuid
+from datetime import datetime
 from langgraph.graph import StateGraph, END
 from src.graph.state import AgentState
 from src.graph.nodes.sentiment import sentiment_node
@@ -150,6 +151,7 @@ def initialize_state(conversation_id: str = None) -> AgentState:
         "error_count": 0,
         "last_error": None,
         "conversation_id": conversation_id or str(uuid.uuid4()),
+        "conversation_start_time": datetime.now().isoformat(),
         "ticket_types": [],
         "escalated": False,
         "next_agent": None,

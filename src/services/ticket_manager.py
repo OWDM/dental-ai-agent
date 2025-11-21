@@ -172,6 +172,10 @@ Please analyze the conversation again and provide a corrected JSON response with
     def _save_ticket(self, state: AgentState, analysis: dict, history: dict):
         """Insert the ticket into Supabase"""
         
+        # Use conversation start time for created_at, current time for updated_at
+        conversation_start = state.get("conversation_start_time") or datetime.now().isoformat()
+        current_time = datetime.now().isoformat()
+
         ticket_data = {
             "conversation_id": state.get("conversation_id"),
             "patient_id": state.get("patient_id"), # Can be None if patient not identified
@@ -179,12 +183,13 @@ Please analyze the conversation again and provide a corrected JSON response with
             "subject": analysis["subject"],
             "conversation_history": history,
             "status": analysis["status"],
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat()
+            "created_at": conversation_start,  # When customer started talking
+            "updated_at": current_time  # When conversation ended
         }
-        
+
+        # resolved_at should be set when resolved, but empty for escalations
         if analysis["status"] == "resolved":
-            ticket_data["resolved_at"] = datetime.now().isoformat()
+            ticket_data["resolved_at"] = current_time
 
         print(f"💾 Saving ticket: {analysis['subject']} ({analysis['status']})")
         

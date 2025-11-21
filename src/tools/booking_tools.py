@@ -69,7 +69,7 @@ def get_available_doctors() -> str:
 
         result = "Available doctors:\n\n"
         for i, doctor in enumerate(doctors, 1):
-            result += f"{i}. Dr. {doctor['name']}\n"
+            result += f"{i}. {doctor['name']}\n"
             result += f"   Specialization: {doctor['specialization']}\n"
             result += f"   ID: {doctor['id']}\n\n"
 
@@ -186,16 +186,14 @@ def create_new_booking(
         return f"""✅ Appointment successfully booked!
 
 Service: {service['name']}
-Doctor: Dr. {doctor['name']}
+Doctor: {doctor['name']}
 Date & Time: {formatted_time}
 Duration: {service['duration_minutes']} minutes
 Price: {service['price']} SAR
 
-IMPORTANT: You MUST now call send_booking_confirmation_email() with these exact parameters:
-- patient_email: {patient_email}
-- patient_name: {patient_name}
+IMPORTANT: You MUST now call send_booking_confirmation_email() using the patient information from your context and these appointment details:
 - service_name: {service['name']}
-- doctor_name: Dr. {doctor['name']}
+- doctor_name: {doctor['name']}
 - appointment_datetime: {start_time.strftime('%Y-%m-%d %H:%M')}
 - duration_minutes: {service['duration_minutes']}
 - price: {service['price']}"""
@@ -264,7 +262,7 @@ def send_booking_confirmation_email(
         print(f"[TOOL DEBUG] Email result: {result}")
 
         if result['status'] == 'success':
-            return f"✅ Confirmation email sent to {patient_email}"
+            return "✅ Confirmation email has been sent successfully."
         else:
             return f"⚠️ Booking successful but email failed: {result['message']}"
 
