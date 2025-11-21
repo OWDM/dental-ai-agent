@@ -10,6 +10,101 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from src.utils.debug import debug
 
 
+# =============================================================================
+# DENTAL GLOSSARY - Consistent terminology mappings
+# =============================================================================
+DENTAL_GLOSSARY = {
+    # Procedures (English -> Arabic)
+    "Tooth Extraction": "خلع الأسنان",
+    "Emergency Visit": "زيارة طوارئ",
+    "Crown Installation": "تركيب التاج",
+    "Root Canal Treatment": "علاج قناة الجذر",
+    "Teeth Cleaning": "تنظيف الأسنان",
+    "Initial Examination": "الفحص الأولي",
+    "Orthodontic Consultation": "استشارة تقويم الأسنان",
+    "Teeth Whitening": "تبييض الأسنان",
+    "Tooth Filling": "حشو الأسنان",
+    "Deep Cleaning": "تنظيف عميق",
+    # Specializations
+    "Oral Surgery": "جراحة الفم",
+    "Orthodontics": "تقويم الأسنان",
+    "General Dentistry": "طب الأسنان العام",
+    "Pediatric Dentistry": "طب أسنان الأطفال",
+    "Periodontics": "أمراض اللثة",
+}
+
+# =============================================================================
+# NAME MAPPINGS - Bidirectional Arabic ↔ English
+# =============================================================================
+PATIENT_NAMES = {
+    # Arabic -> English
+    "محمد علي القحطاني": "Mohammed Ali Al-Qahtani",
+    "فاطمة عبدالله السعيد": "Fatimah Abdullah Al-Saeed",
+    "سارة حسن الشهري": "Sara Hassan Al-Shehri",
+    "عبدالرحمن فهد الدوسري": "Abdulrahman Fahad Al-Dossary",
+    "ريم ماجد الحربي": "Reem Majed Al-Harbi",
+    "أحمد محمد العتيبي": "Ahmed Mohammed Al-Otaibi",
+    "نورة إبراهيم الغامدي": "Noura Ibrahim Al-Ghamdi",
+    "خالد سعود المطيري": "Khalid Saud Al-Mutairi",
+}
+
+DOCTOR_NAMES = {
+    # Arabic -> English
+    "د. هند محمد السديري": "Dr. Hind Mohammed Al-Sudairy",
+    "دكتورة هند محمد السديري": "Dr. Hind Mohammed Al-Sudairy",
+    "د. ليلى أحمد الفيصل": "Dr. Laila Ahmed Al-Faisal",
+    "دكتورة ليلى أحمد الفيصل": "Dr. Laila Ahmed Al-Faisal",
+    "د. سعد بن عبدالعزيز الخالد": "Dr. Saad bin Abdulaziz Al-Khaled",
+    "دكتور سعد بن عبدالعزيز الخالد": "Dr. Saad bin Abdulaziz Al-Khaled",
+    "د. يوسف سليمان العجلان": "Dr. Yousef Sulaiman Al-Ajlan",
+    "دكتور يوسف سليمان العجلان": "Dr. Yousef Sulaiman Al-Ajlan",
+    "د. عمر فهد الراشد": "Dr. Omar Fahad Al-Rashed",
+    "دكتور عمر فهد الراشد": "Dr. Omar Fahad Al-Rashed",
+}
+
+# Reverse mappings for EN -> AR translation
+PATIENT_NAMES_REVERSE = {v: k for k, v in PATIENT_NAMES.items()}
+DOCTOR_NAMES_REVERSE = {v: k for k, v in list(DOCTOR_NAMES.items())[::2]}  # Take first Arabic variant
+
+
+def _build_glossary_prompt() -> str:
+    """Build the glossary section for translation prompts."""
+    lines = ["GLOSSARY (use these exact translations):"]
+    for en, ar in DENTAL_GLOSSARY.items():
+        lines.append(f'- "{en}" ↔ "{ar}"')
+    return "\n".join(lines)
+
+
+def _build_names_prompt_ar_to_en() -> str:
+    """Build name mappings for Arabic to English translation."""
+    lines = ["NAME MAPPINGS (Arabic → English):"]
+
+    lines.append("\nPatients:")
+    for ar, en in PATIENT_NAMES.items():
+        lines.append(f'- "{ar}" → "{en}"')
+
+    lines.append("\nDoctors:")
+    for ar, en in DOCTOR_NAMES.items():
+        lines.append(f'- "{ar}" → "{en}"')
+
+    return "\n".join(lines)
+
+
+def _build_names_prompt_en_to_ar() -> str:
+    """Build name mappings for English to Arabic translation."""
+    lines = ["NAME MAPPINGS (English → Arabic):"]
+
+    lines.append("\nPatients:")
+    for en, ar in PATIENT_NAMES_REVERSE.items():
+        lines.append(f'- "{en}" → "{ar}"')
+
+    lines.append("\nDoctors:")
+    for en, ar in DOCTOR_NAMES_REVERSE.items():
+        lines.append(f'- "{en}" → "{ar}"')
+
+    return "\n".join(lines)
+
+
 class TranslationService:
     """Service for detecting language and translating between Arabic and English."""
 
@@ -53,19 +148,39 @@ class TranslationService:
         """
         start_time = time.time()
 
+        # Build dynamic prompts
+        glossary = _build_glossary_prompt()
+        names = _build_names_prompt_ar_to_en()
+
+        system_prompt = f"""You are a deterministic translation engine. You are NOT an AI assistant.
+You do not converse, explain, summarize, or add commentary.
+Output ONLY the English translation - nothing else.
+
+RULES:
+1. Translate Arabic to English accurately
+2. Preserve all formatting, numbers, dates, times, and punctuation
+3. Use glossary terms exactly as specified
+4. Convert Arabic names to their English equivalents using the name mappings
+
+{glossary}
+
+{names}
+
+Examples:
+Arabic: أريد حجز موعد لتنظيف الأسنان
+English: I want to book an appointment for Teeth Cleaning
+
+Arabic: موعدي مع د. سعد بن عبدالعزيز الخالد
+English: My appointment with Dr. Saad bin Abdulaziz Al-Khaled
+
+Arabic: أحتاج علاج قناة الجذر مع دكتور عمر فهد الراشد
+English: I need Root Canal Treatment with Dr. Omar Fahad Al-Rashed
+
+Arabic: أنا محمد علي القحطاني
+English: I am Mohammed Ali Al-Qahtani"""
+
         messages = [
-            SystemMessage(content=(
-                "Translate Arabic to English word-for-word. Keep all formatting.\n\n"
-                "Examples:\n"
-                "Arabic: مرحباً\n"
-                "English: Hello\n\n"
-                "Arabic: السلام عليكم\n"
-                "English: Peace be upon you\n\n"
-                "Arabic: أريد حجز موعد\n"
-                "English: I want to book an appointment\n\n"
-                "Arabic: متى ساعات الدوام؟\n"
-                "English: When are the working hours?"
-            )),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=f"Arabic: {text}\nEnglish:")
         ]
 
@@ -106,19 +221,39 @@ class TranslationService:
         """
         start_time = time.time()
 
+        # Build dynamic prompts
+        glossary = _build_glossary_prompt()
+        names = _build_names_prompt_en_to_ar()
+
+        system_prompt = f"""You are a deterministic translation engine. You are NOT an AI assistant.
+You do not converse, explain, summarize, or add commentary.
+Output ONLY the Arabic translation - nothing else.
+
+RULES:
+1. Translate English to Arabic accurately
+2. Preserve all formatting, numbers, dates, times, emails, and punctuation
+3. Use glossary terms exactly as specified (use the Arabic equivalents)
+4. Convert English names to their Arabic equivalents using the name mappings
+
+{glossary}
+
+{names}
+
+Examples:
+English: I've booked your Teeth Cleaning appointment with Dr. Saad bin Abdulaziz Al-Khaled
+Arabic: لقد حجزت موعد تنظيف الأسنان مع د. سعد بن عبدالعزيز الخالد
+
+English: Your Root Canal Treatment is scheduled for November 25 at 3:30 PM
+Arabic: موعد علاج قناة الجذر الخاص بك في 25 نوفمبر الساعة 3:30 مساءً
+
+English: Dr. Omar Fahad Al-Rashed specializes in Periodontics
+Arabic: د. عمر فهد الراشد متخصص في أمراض اللثة
+
+English: Mohammed Ali Al-Qahtani, your appointment is confirmed
+Arabic: محمد علي القحطاني، تم تأكيد موعدك"""
+
         messages = [
-            SystemMessage(content=(
-                "Translate English to Arabic word-for-word. Keep all formatting and numbers.\n\n"
-                "Examples:\n"
-                "English: Hello\n"
-                "Arabic: مرحباً\n\n"
-                "English: I want to book an appointment\n"
-                "Arabic: أريد حجز موعد\n\n"
-                "English: When are the working hours?\n"
-                "Arabic: متى ساعات الدوام؟\n\n"
-                "English: Dr. Ahmed - 500 SAR\n"
-                "Arabic: د. أحمد - 500 ريال"
-            )),
+            SystemMessage(content=system_prompt),
             HumanMessage(content=f"English: {text}\nArabic:")
         ]
 
